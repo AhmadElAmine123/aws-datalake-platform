@@ -17,6 +17,6 @@ cities = [
 ]
 
 # Prod: production schedules
-batch_schedule     = "cron(0 6 * * ? *)"    # 6 AM UTC daily
+batch_schedule     = "cron(0 6 * * ? *)" # 6 AM UTC daily
 stream_schedule    = "rate(5 minutes)"
 transform_schedule = "rate(1 hour)"

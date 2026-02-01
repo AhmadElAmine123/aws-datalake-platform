@@ -97,7 +97,7 @@ resource "aws_cloudwatch_metric_alarm" "batch_ingest_duration" {
   namespace           = "AWS/Lambda"
   period              = "300"
   statistic           = "Maximum"
-  threshold           = "90000"  # 90 seconds in ms
+  threshold           = "90000" # 90 seconds in ms
   alarm_description   = "Batch ingest Lambda took more than 90 seconds"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 

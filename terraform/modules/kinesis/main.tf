@@ -37,9 +37,9 @@ resource "aws_kinesis_firehose_delivery_stream" "iot_sensors" {
     bucket_id          = var.datalake_bucket_id
     prefix             = "raw/iot-sensors/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"
     error_bucket_prefix = "firehose-errors/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/!{errors:type}/"
-    buffering_size     = 5    # MB
-    buffering_interval = 60   # seconds
-    compression_format = "NONE"  # JSON stays uncompressed for Glue readability
+    buffering_size     = 5 # MB
+    buffering_interval = 60 # seconds
+    compression_format = "NONE" # JSON stays uncompressed for Glue readability
 
     cloudwatch_logging {
       enabled  = true
