@@ -56,12 +56,12 @@ module "lambda" {
 module "glue" {
   source = "../../modules/glue"
 
-  project_name         = var.project_name
-  environment          = var.environment
-  glue_role_arn        = module.iam.glue_role_arn
-  kms_key_arn          = module.kms.datalake_key_arn
-  datalake_bucket_id   = module.s3.datalake_bucket_id
-  datalake_bucket_arn  = module.s3.datalake_bucket_arn
+  project_name        = var.project_name
+  environment         = var.environment
+  glue_role_arn       = module.iam.glue_role_arn
+  kms_key_arn         = module.kms.datalake_key_arn
+  datalake_bucket_id  = module.s3.datalake_bucket_id
+  datalake_bucket_arn = module.s3.datalake_bucket_arn
 }
 
 # ─── Athena Module ───────────────────────────────────────────────────────────
