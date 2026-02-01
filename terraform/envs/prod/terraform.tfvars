@@ -2,8 +2,8 @@ project_name = "aws-datalake-platform"
 environment  = "prod"
 aws_region   = "us-east-1"
 
-# Replace with your actual email address
-alert_email  = "your-email@example.com"
+# alert_email is intentionally omitted here.
+# Set it via: source scripts/load-env.sh   (reads from .env)
 
 cities = [
   { name = "New York",    latitude = 40.7128,  longitude = -74.0060  },

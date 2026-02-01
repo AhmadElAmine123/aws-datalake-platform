@@ -73,7 +73,17 @@ s3://<project>-<env>-datalake/
 
 ## Getting Started
 
-### 1. Bootstrap Remote State
+### 1. Create your `.env` file
+
+Sensitive values (email, AWS profile) live in a gitignored `.env` — nothing personal is tracked in the repo.
+
+```bash
+cp .env.example .env
+# Edit .env — fill in ALERT_EMAIL and optionally AWS_PROFILE
+vim .env
+```
+
+### 2. Bootstrap Remote State
 
 This creates the S3 bucket and DynamoDB table for Terraform state **before** `terraform init`:
 
@@ -81,24 +91,24 @@ This creates the S3 bucket and DynamoDB table for Terraform state **before** `te
 bash terraform/bootstrap.sh
 ```
 
-### 2. Deploy Dev Environment
+### 3. Deploy Dev Environment
+
+Source the env loader first — it reads `.env` and exports `TF_VAR_*` variables that Terraform picks up automatically:
 
 ```bash
+source scripts/load-env.sh
+
 cd terraform/envs/dev
-
-# Edit terraform.tfvars — replace alert_email with your email
-vim terraform.tfvars
-
 terraform init
 terraform plan
 terraform apply
 ```
 
-### 3. Deploy Prod Environment
+### 4. Deploy Prod Environment
 
 Same steps, in `terraform/envs/prod/`.
 
-### 4. Verify the Pipeline
+### 5. Verify the Pipeline
 
 After deploy, wait ~5 minutes for the first stream_generate Lambda to fire, then:
 
@@ -154,6 +164,7 @@ GitHub Actions runs on PRs to `main` that touch `terraform/`:
 │       ├── dev/                  # Dev: backend, variables, main, tfvars
 │       └── prod/                 # Prod: backend, variables, main, tfvars
 ├── scripts/
+│   ├── load-env.sh               # Sources .env → exports TF_VAR_* for Terraform
 │   ├── batch_ingest/             # Lambda: fetch weather from Open-Meteo
 │   ├── stream_generate/          # Lambda: synthetic IoT events → Firehose
 │   └── glue_transform/           # PySpark: validate → transform → write Parquet
@@ -161,6 +172,7 @@ GitHub Actions runs on PRs to `main` that touch `terraform/`:
 │   └── runbook.md                # Operational runbook
 ├── .github/workflows/
 │   └── terraform-ci.yml          # GitHub Actions CI
+├── .env.example                  # Template for sensitive values (copy → .env)
 └── README.md
 ```
 
