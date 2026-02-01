@@ -1,0 +1,145 @@
+name: Terraform CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "terraform/**"
+
+permissions:
+  contents: read
+  id-token: write   # For OIDC auth with AWS (optional, see setup note)
+
+jobs:
+  # ─── Format Check ──────────────────────────────────────────────────────────
+  fmt:
+    name: Terraform Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.x"
+
+      - name: Check formatting (dev)
+        run: |
+          cd terraform/envs/dev
+          terraform fmt -check -diff
+        continue-on-error: false
+
+      - name: Check formatting (prod)
+        run: |
+          cd terraform/envs/prod
+          terraform fmt -check -diff
+        continue-on-error: false
+
+      - name: Check formatting (modules)
+        run: |
+          cd terraform/modules
+          find . -name "*.tf" -exec dirname {} \; | sort -u | while read dir; do
+            echo "Checking $dir"
+            terraform fmt -check -diff "$dir"
+          done
+        continue-on-error: false
+
+  # ─── Validate ──────────────────────────────────────────────────────────────
+  validate:
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, prod]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.x"
+
+      - name: Terraform Init (${{ matrix.environment }})
+        # Use local state for CI validation (no backend)
+        run: |
+          cd terraform/envs/${{ matrix.environment }}
+          # Override backend to local for CI (no S3 access needed for validate)
+          terraform init -backend=false -reconfigure
+
+      - name: Terraform Validate (${{ matrix.environment }})
+        run: |
+          cd terraform/envs/${{ matrix.environment }}
+          terraform validate
+
+  # ─── Plan (requires AWS credentials) ──────────────────────────────────────
+  # This job only runs if you configure AWS OIDC credentials in the repo.
+  # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+  #
+  # To enable:
+  #   1. Create an OIDC Identity Provider in your AWS account pointing to
+  #      https://token.actions.githubusercontent.com
+  #   2. Create a role that trusts this provider with your repo as the subject
+  #   3. Set AWS_ROLE_ARN and AWS_REGION secrets in your GitHub repo
+  #
+  # If credentials are not configured, this job will be skipped.
+  plan:
+    name: Terraform Plan (${{ matrix.environment }})
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+    strategy:
+      matrix:
+        environment: [dev, prod]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.x"
+
+      # OIDC-based AWS auth (no long-lived credentials in secrets)
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+        continue-on-error: true
+        id: aws-auth
+
+      - name: Terraform Init (${{ matrix.environment }})
+        if: steps.aws-auth.outcome == 'success'
+        run: |
+          cd terraform/envs/${{ matrix.environment }}
+          terraform init
+
+      - name: Terraform Plan (${{ matrix.environment }})
+        if: steps.aws-auth.outcome == 'success'
+        run: |
+          cd terraform/envs/${{ matrix.environment }}
+          terraform plan -detailed-exitcode -out=plan.tfplan || true
+
+      - name: Upload Plan Artifact
+        if: steps.aws-auth.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ matrix.environment }}
+          path: terraform/envs/${{ matrix.environment }}/plan.tfplan
+          retention-days: 7
+
+  # ─── Python Syntax Check ───────────────────────────────────────────────────
+  python-lint:
+    name: Python Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check Python syntax
+        run: |
+          find scripts -name "*.py" | while read f; do
+            echo "Checking $f"
+            python -m py_compile "$f"
+          done
